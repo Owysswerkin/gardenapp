@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多租户智慧幼教平台原型</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 隐藏滚动条 */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans transition-colors duration-200">
+
+  <!-- 顶部总控导航栏 -->
+  <header class="bg-white border-b border-slate-200/80 px-6 py-4 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-50 shadow-sm">
+    <div class="flex items-center space-x-3">
+      <span class="text-3xl">🏫</span>
+      <div>
+        <h1 class="text-xl font-bold text-slate-900 tracking-tight">多租户智慧幼教平台</h1>
+        <p class="text-xs text-slate-500">一站式集团化管理与家校共育架构演示系统</p>
+      </div>
+    </div>
+
+    <!-- 视图切换器 -->
+    <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+      <button onclick="switchView('ops')" id="btn-ops" class="view-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 hover:text-slate-900">
+        ⚙️ 运营管理端
+      </button>
+      <button onclick="switchView('group')" id="btn-group" class="view-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 hover:text-slate-900">
+        🏢 集团管理端
+      </button>
+      <button onclick="switchView('campus')" id="btn-campus" class="view-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 hover:text-slate-900">
+        🏫 园区管理端
+      </button>
+      <button onclick="switchView('parent')" id="btn-parent" class="view-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 hover:text-slate-900">
+        📱 家长端APP
+      </button>
+    </div>
+  </header>
+
+  <!-- 架构逻辑解析栏 -->
+  <section class="bg-indigo-50 border-b border-indigo-100 px-6 py-3">
+    <div class="max-w-7xl mx-auto flex items-start gap-3">
+      <span class="text-indigo-600 text-lg mt-0.5">💡</span>
+      <div class="text-sm text-slate-600 leading-relaxed">
+        <strong class="text-indigo-800">核心痛点解答：</strong> 
+        当一位家长在同一集团的不同园区有两个孩子时，系统在底座层采用 
+        <span class="text-emerald-600 font-semibold">“唯一样本家长账号 (UID) 绑定多个学生档案 (Student ID)”</span> 的设计。
+        家长在APP登录后无须重新登录，通过顶部卡片或头像即可无缝秒级切换，分别查看对应园所、班级的通知和老师信息。
+      </div>
+    </div>
+  </section>
+
+  <!-- 全局自定义通知Toast组件 -->
+  <div id="toast" class="fixed top-20 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-white border border-emerald-100 shadow-xl rounded-2xl p-4 flex items-center space-x-3 max-w-sm">
+      <span class="text-emerald-500 text-xl">✅</span>
+      <div>
+        <h4 class="font-bold text-slate-900 text-sm" id="toast-title">提示</h4>
+        <p class="text-xs text-slate-500" id="toast-desc">操作成功！</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主画布区域 -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto">
+    
+    <!-- ==================== 1. 运营管理端 ==================== -->
+    <div id="view-ops" class="view-content hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">全局运营管理中心</h2>
+          <p class="text-sm text-slate-500">用于平台超级管理员对所有集团客户的开户注册、资源配额及全局配置管理</p>
+        </div>
+        <button onclick="toggleAddGroupModal(true)" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
+          + 开通集团账号
+        </button>
+      </div>
+
+      <!-- 新增集团弹窗 -->
+      <div id="add-group-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-2xl max-w-md w-full">
+          <h3 class="text-lg font-semibold mb-4 text-slate-900">开通全新集团账户</h3>
+          <form onsubmit="handleAddGroup(event)" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">集团名称</label>
+              <input type="text" id="new-group-name" required placeholder="例如：向日葵教育集团" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">允许最大园区配额（园区上限数）</label>
+              <input type="number" id="new-group-max" required min="1" value="5" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" onclick="toggleAddGroupModal(false)" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-800 transition-colors">
+                取消
+              </button>
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg shadow-sm">
+                确认开通
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 集团客户列表 -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 bg-slate-50 border-b border-slate-200/80">
+          <h3 class="font-semibold text-slate-900">合作集团名录及配额配置表</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse min-w-[600px]">
+            <thead>
+              <tr class="bg-slate-100/50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200/85">
+                <th class="p-4">集团ID</th>
+                <th className="p-4" class="p-4">集团名称</th>
+                <th class="p-4">开通日期</th>
+                <th class="p-4">当前园区数 / 上限园区配额</th>
+                <th class="p-4">状态</th>
+                <th class="p-4 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="group-list-body" class="divide-y divide-slate-100 text-sm">
+              <!-- JS 动态注入 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 2. 集团管理端 ==================== -->
+    <div id="view-group" class="view-content hidden space-y-6">
+      <div class="flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">集团管理看板</h2>
+          <p class="text-sm text-slate-500">供教育集团高层查看各直营/加盟园区经营实况、数据报表及人员配置</p>
+        </div>
+        <!-- 集团切换下拉选择 -->
+        <div class="flex items-center space-x-3 bg-white px-4 py-2 rounded-xl border border-slate-200/80 shadow-sm">
+          <span class="text-xs text-slate-500 uppercase tracking-wider">当前集团：</span>
+          <select id="group-select" onchange="updateGroupDashboard()" class="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer">
+            <!-- 动态生成 -->
+          </select>
+        </div>
+      </div>
+
+      <!-- 集团核心统计数值 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <p class="text-slate-500 text-sm">集团下属园区</p>
+          <div class="flex items-baseline space-x-2 mt-2">
+            <span class="text-3xl font-extrabold text-slate-900" id="stat-campuses">0</span>
+            <span class="text-slate-400 text-sm">个园区</span>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <p class="text-slate-500 text-sm">集团总学生数</p>
+          <div class="flex items-baseline space-x-2 mt-2">
+            <span class="text-3xl font-extrabold text-emerald-600" id="stat-students">0</span>
+            <span class="text-slate-400 text-sm">名幼儿</span>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <p class="text-slate-500 text-sm">集团总教职工数</p>
+          <div class="flex items-baseline space-x-2 mt-2">
+            <span class="text-3xl font-extrabold text-indigo-600" id="stat-teachers">0</span>
+            <span class="text-slate-400 text-sm">位教工</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 园区细分名录 -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 bg-slate-50 border-b border-slate-200/80">
+          <h3 class="font-semibold text-slate-900">集团旗下园区一览</h3>
+        </div>
+        <div id="campus-list-container" class="divide-y divide-slate-100">
+          <!-- JS 动态注入 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 3. 园区管理端 ==================== -->
+    <div id="view-campus" class="view-content hidden space-y-6">
+      <div class="flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">园区业务后台</h2>
+          <p class="text-sm text-slate-500">供各园区老师与园长发布园所通知、作业信息、安全提醒等日常运营</p>
+        </div>
+        <!-- 切换具体园区 -->
+        <div class="flex items-center space-x-3 bg-white px-4 py-2 rounded-xl border border-slate-200/80 shadow-sm">
+          <span class="text-xs text-slate-500 uppercase tracking-wider">当前工作园所：</span>
+          <select id="campus-select" onchange="updateCampusDashboard()" class="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer">
+            <!-- 动态注入 -->
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 发布通知卡片 -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h3 class="text-lg font-bold mb-4 text-slate-900 flex items-center gap-2">
+            <span>📢</span> 新增家长消息推送 (实时同步)
+          </h3>
+          <form onsubmit="handlePublishMessage(event)" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">接收范围（班级）</label>
+                <select id="msg-target-class" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white">
+                  <option value="苹果小班">苹果小班 (对应老大家长)</option>
+                  <option value="向日葵大班">向日葵大班 (对应老二家长)</option>
+                  <option value="全园">全园通告</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">发送身份</label>
+                <input type="text" disabled value="主班陈老师 (已授权)" class="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-lg px-3 py-2" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">通知标题</label>
+              <input type="text" id="msg-title" required placeholder="例如：明日食谱变动通知 / 暑假安全防溺水指南" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">通知正文内容</label>
+              <textarea id="msg-content" required rows="4" placeholder="请输入详细的通知内容，点击发送后，拥有对应孩子账户的家长端将立即显示..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white"></textarea>
+            </div>
+
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-sm">
+              🚀 发布并即时推送至家长APP
+            </button>
+          </form>
+        </div>
+
+        <!-- 侧栏架构提示 -->
+        <div class="bg-slate-100/50 p-6 rounded-2xl border border-slate-200/60 space-y-4">
+          <h4 class="font-bold text-slate-800 text-base">园所管理核心要素</h4>
+          <ul class="space-y-3 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <span class="text-indigo-600 font-bold">✓</span>
+              <span><strong>统一消息分发：</strong> 老师可在后台精确按班级、园区、集团全局一键发送精准通知。</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-indigo-600 font-bold">✓</span>
+              <span><strong>老师账号控制：</strong> 每个班级绑定1-3个老师，老师仅可查看和维护所属班级的学生。</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-indigo-600 font-bold">✓</span>
+              <span><strong>智能双向通信：</strong> 家长收到消息后可以快速点击在线确认，免除传统的纸质签字。</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 4. 家长端APP (移动端仿真框架) ==================== -->
+    <div id="view-parent" class="view-content space-y-6">
+      <div class="flex flex-col items-center space-y-6">
+        <div class="text-center max-w-lg">
+          <h2 class="text-2xl font-bold text-slate-900">家长端APP演示</h2>
+          <p class="text-sm text-slate-500">
+            该界面模拟了移动APP。该家长拥有
+            <span class="text-indigo-600 font-semibold">张小阳</span> 与 
+            <span className="text-indigo-600 font-semibold" class="text-indigo-600 font-semibold">张小光</span> 
+            两个孩子（分别在不同园区）。请在APP内体验“切换孩子”的效果！
+          </p>
+        </div>
+
+        <!-- 手机壳体仿真容器 (Light UI) -->
+        <div class="w-[375px] h-[740px] bg-white border-8 border-slate-200 rounded-[48px] shadow-2xl overflow-hidden relative flex flex-col">
+          
+          <!-- 顶部手机齐刘海及电量状态条 -->
+          <div class="bg-slate-100 text-slate-600 text-xs px-6 pt-3 pb-2 flex justify-between items-center z-10 border-b border-slate-200/50">
+            <span class="font-semibold">17:21</span>
+            <div class="w-20 h-4 bg-slate-300 rounded-b-xl absolute left-1/2 transform -translate-x-1/2 top-0"></div>
+            <div class="flex items-center space-x-1.5">
+              <span>📶</span>
+              <span class="font-semibold">85%</span>
+            </div>
+          </div>
+
+          <!-- APP 头部：孩子一键秒切换 -->
+          <div class="bg-indigo-600 px-4 py-5 pb-8 rounded-b-[32px] shadow-md">
+            <div class="flex justify-between items-center mb-3">
+              <span class="text-white font-bold text-base tracking-wide">掌上宝贝</span>
+              <span class="text-indigo-100 text-[10px] bg-white/10 px-2 py-0.5 rounded-full">同一个家长账号</span>
+            </div>
+
+            <!-- 家长绑定关系展示及切换卡片 -->
+            <div class="bg-white p-3 rounded-2xl flex items-center justify-between border border-slate-100 shadow-sm">
+              <div class="flex items-center space-x-3">
+                <div class="text-3xl bg-indigo-50 p-2 rounded-full" id="kid-avatar">
+                  👦
+                </div>
+                <div>
+                  <span class="text-slate-400 text-[10px] block">当前选中宝贝</span>
+                  <span class="text-slate-800 font-bold text-base" id="kid-name">张小阳</span>
+                  <span class="text-indigo-600 text-xs ml-1 font-semibold" id="kid-class">(苹果小班)</span>
+                </div>
+              </div>
+              
+              <!-- 一键无感快速切换学生下拉 -->
+              <div class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer transition-all flex items-center gap-1">
+                <span>🔄 切换:</span>
+                <select id="kid-switch-select" onchange="switchKid(this.value)" class="bg-transparent font-bold cursor-pointer text-indigo-800 focus:outline-none border-none outline-none">
+                  <!-- 动态加载 -->
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 校园班级基础卡片（随孩子状态动态变化） -->
+          <div class="px-4 -mt-5 flex-1 overflow-y-auto space-y-4 pb-12 no-scrollbar">
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 shadow-sm flex justify-between items-center">
+              <div class="max-w-[65%]">
+                <span class="text-[10px] uppercase text-slate-400 block font-semibold">所在园所</span>
+                <span class="text-sm font-bold text-slate-800 block truncate" id="kid-campus">阳光滨江示范园</span>
+                <span class="text-[10px] text-indigo-600 font-semibold mt-0.5 block" id="kid-group">阳光教育集团</span>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] text-slate-400 block font-semibold">班主任老师</span>
+                <span class="text-sm font-bold text-emerald-600" id="kid-teacher">陈老师</span>
+              </div>
+            </div>
+
+            <!-- 功能快捷金刚区 -->
+            <div class="grid grid-cols-4 gap-2 text-center">
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 hover:bg-slate-100 cursor-pointer">
+                <span class="block text-xl mb-1">📅</span>
+                <span class="text-[10px] text-slate-600">班级食谱</span>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 hover:bg-slate-100 cursor-pointer">
+                <span class="block text-xl mb-1">📷</span>
+                <span class="text-[10px] text-slate-600">精彩瞬间</span>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 hover:bg-slate-100 cursor-pointer">
+                <span class="block text-xl mb-1">📝</span>
+                <span class="text-[10px] text-slate-600">请假补签</span>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 hover:bg-slate-100 cursor-pointer">
+                <span class="block text-xl mb-1">📋</span>
+                <span class="text-[10px] text-slate-600">成长档案</span>
+              </div>
+            </div>
+
+            <!-- 消息盒子模块 -->
+            <div class="space-y-2">
+              <div class="flex justify-between items-center mb-1">
+                <h3 class="text-sm font-bold text-slate-700">班级动态 / 园所通知</h3>
+                <span class="text-[10px] text-slate-400">已读确认</span>
+              </div>
+
+              <div id="parent-message-container" class="space-y-3">
+                <!-- 消息动态渲染 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 手机底部虚拟主页指示条 -->
+          <div class="absolute bottom-1.5 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-slate-300 rounded-full"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+    <p>© 2026 智慧幼教 SaaS 平台. 支持跨多园区、统一数据总线架构设计.</p>
+  </footer>
+
+  <!-- ==================== JavaScript 交互逻辑 ==================== -->
+  <script>
+    // ==================== 状态数据 ====================
+    let state = {
+      currentView: 'parent',
+      activeKidId: 'kid-1',
+      selectedGroupId: 'group-1',
+      selectedCampId: 'camp-1',
+      groups: [
+        { id: 'group-1', name: '阳光教育集团', maxCampuses: 5, campusCount: 2, status: '正常', createdAt: '2026-01-10' },
+        { id: 'group-2', name: '红星幼教集团', maxCampuses: 3, campusCount: 1, status: '正常', createdAt: '2026-03-15' }
+      ],
+      campuses: [
+        { id: 'camp-1', groupId: 'group-1', name: '阳光滨江示范园', principal: '林园长', studentCount: 120, teacherCount: 18 },
+        { id: 'camp-2', groupId: 'group-1', name: '阳光第一双语园', principal: '王园长', studentCount: 95, teacherCount: 12 },
+        { id: 'camp-3', groupId: 'group-2', name: '红星实验幼儿园', principal: '张园长', studentCount: 150, teacherCount: 22 }
+      ],
+      kids: [
+        {
+          id: 'kid-1',
+          name: '张小阳',
+          groupName: '阳光教育集团',
+          campusName: '阳光滨江示范园',
+          className: '苹果小班',
+          teacher: '陈老师',
+          avatar: '👦',
+          messages: [
+            { id: 'm1', title: '明日户外春游通知', content: '各位家长，明天我们将前往滨江公园春游，请为孩子穿上运动鞋，准备适量水和零食。', sender: '陈老师', time: '今天 09:30', confirmed: false },
+            { id: 'm2', title: '接种疫苗摸底调查', content: '请在今晚前完成春季流感疫苗接种情况登记表填写。', sender: '教务处', time: '昨天 15:20', confirmed: false }
+          ]
+        },
+        {
+          id: 'kid-2',
+          name: '张小光',
+          groupName: '阳光教育集团',
+          campusName: '阳光第一双语园',
+          className: '向日葵大班',
+          teacher: '赵老师',
+          avatar: '🧒',
+          messages: [
+            { id: 'm3', title: '大班毕业典礼筹备', content: '本学期毕业典礼拟定于下个月中旬举行，诚邀各位家长建言策画。', sender: '赵老师', time: '今天 11:15', confirmed: false },
+            { id: 'm4', title: '本周食谱公示', content: '本周营养食谱已更新，详情请在APP食谱专区查看。', sender: '保健室', time: '2026-06-29', confirmed: false }
+          ]
+        }
+      ]
+    };
+
+    // ==================== 初始化 ====================
+    window.onload = function() {
+      switchView(state.currentView);
+      syncDropdowns();
+      renderAll();
+    };
+
+    // 显示轻量化通知
+    function showToast(title, desc) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-title').innerText = title;
+      document.getElementById('toast-desc').innerText = desc;
+      toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      
+      setTimeout(() => {
+        toast.classList.add('translate-y-[-100px]', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3000);
+    }
+
+    // 切换标签视图
+    function switchView(viewName) {
+      state.currentView = viewName;
+      
+      // 更新导航按钮激活样式
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+        btn.classList.add('text-slate-600');
+      });
+      const activeBtn = document.getElementById(`btn-${viewName}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+        activeBtn.classList.remove('text-slate-600');
+      }
+
+      // 切换视图容器显示
+      document.querySelectorAll('.view-content').forEach(container => {
+        container.classList.add('hidden');
+      });
+      const targetContainer = document.getElementById(`view-${viewName}`);
+      if (targetContainer) {
+        targetContainer.classList.remove('hidden');
+      }
+
+      renderAll();
+    }
+
+    // 联动同步下拉列表
+    function syncDropdowns() {
+      // 集团下拉
+      const groupSelect = document.getElementById('group-select');
+      groupSelect.innerHTML = state.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+      
+      // 园区下拉
+      const campusSelect = document.getElementById('campus-select');
+      campusSelect.innerHTML = state.campuses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+      // 家长APP孩子切换
+      const kidSelect = document.getElementById('kid-switch-select');
+      kidSelect.innerHTML = state.kids.map(k => `<option value="${k.id}">${k.name}</option>`).join('');
+    }
+
+    // ==================== 数据渲染总控制器 ====================
+    function renderAll() {
+      if (state.currentView === 'ops') {
+        renderOps();
+      } else if (state.currentView === 'group') {
+        renderGroup();
+      } else if (state.currentView === 'campus') {
+        renderCampus();
+      } else if (state.currentView === 'parent') {
+        renderParent();
+      }
+    }
+
+    // 1. 渲染运营端
+    function renderOps() {
+      const tbody = document.getElementById('group-list-body');
+      tbody.innerHTML = state.groups.map(g => {
+        const matchingCampuses = state.campuses.filter(c => c.groupId === g.id).length;
+        return `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-4 font-mono text-xs text-indigo-600 font-semibold">${g.id}</td>
+            <td class="p-4 font-semibold text-slate-800">${g.name}</td>
+            <td class="p-4 text-slate-500">${g.createdAt}</td>
+            <td class="p-4">
+              <div class="flex items-center space-x-2">
+                <span class="text-slate-800 font-bold">${matchingCampuses}</span>
+                <span class="text-slate-400">/</span>
+                <span class="text-slate-500">${g.maxCampuses}</span>
+                <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">配置额度</span>
+              </div>
+            </td>
+            <td class="p-4">
+              <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200/50">
+                ${g.status}
+              </span>
+            </td>
+            <td class="p-4 text-right text-xs">
+              <button class="text-indigo-600 hover:text-indigo-800 font-semibold mr-3">编辑配额</button>
+              <button class="text-rose-600 hover:text-rose-800 font-semibold">暂停</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 2. 渲染集团端
+    function renderGroup() {
+      const selectedId = document.getElementById('group-select').value || state.selectedGroupId;
+      state.selectedGroupId = selectedId;
+
+      const campusesInGroup = state.campuses.filter(c => c.groupId === selectedId);
+      const totalStudents = campusesInGroup.reduce((sum, curr) => sum + curr.studentCount, 0);
+      const totalTeachers = campusesInGroup.reduce((sum, curr) => sum + curr.teacherCount, 0);
+
+      document.getElementById('stat-campuses').innerText = campusesInGroup.length;
+      document.getElementById('stat-students').innerText = totalStudents;
+      document.getElementById('stat-teachers').innerText = totalTeachers;
+
+      const listContainer = document.getElementById('campus-list-container');
+      if (campusesInGroup.length === 0) {
+        listContainer.innerHTML = `<div class="p-8 text-center text-slate-400 text-sm">暂无园区关联</div>`;
+        return;
+      }
+
+      listContainer.innerHTML = campusesInGroup.map(c => `
+        <div class="p-5 flex flex-wrap justify-between items-center gap-4 hover:bg-slate-50/80 transition-all">
+          <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-bold border border-indigo-100">
+              🏫
+            </div>
+            <div>
+              <h4 class="text-base font-bold text-slate-800">${c.name}</h4>
+              <p class="text-xs text-slate-500">执行园长：${c.principal}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center space-x-8 text-sm">
+            <div class="text-center">
+              <span class="block text-[10px] text-slate-400 font-semibold">在册幼儿</span>
+              <span class="text-slate-700 font-bold">${c.studentCount}人</span>
+            </div>
+            <div class="text-center">
+              <span class="block text-[10px] text-slate-400 font-semibold">教职工</span>
+              <span class="text-slate-700 font-bold">${c.teacherCount}人</span>
+            </div>
+            <div class="text-center">
+              <span class="block text-[10px] text-slate-400 font-semibold">师生比</span>
+              <span class="text-indigo-600 font-extrabold">1:${(c.studentCount / c.teacherCount).toFixed(1)}</span>
+            </div>
+          </div>
+
+          <div>
+            <button class="text-slate-600 hover:text-indigo-600 font-medium text-xs border border-slate-200 px-3.5 py-2 rounded-xl hover:border-indigo-500/50 bg-white shadow-sm transition-all">
+              进入管理
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateGroupDashboard() {
+      renderGroup();
+    }
+
+    // 3. 渲染园区端
+    function renderCampus() {
+      const selectedCampId = document.getElementById('campus-select').value || state.selectedCampId;
+      state.selectedCampId = selectedCampId;
+      // 园区端没有复杂的表单渲染，直接作为当前环境
+    }
+
+    function updateCampusDashboard() {
+      renderCampus();
+    }
+
+    // 4. 渲染家长端APP
+    function renderParent() {
+      const activeKid = state.kids.find(k => k.id === state.activeKidId) || state.kids[0];
+
+      document.getElementById('kid-avatar').innerText = activeKid.avatar;
+      document.getElementById('kid-name').innerText = activeKid.name;
+      document.getElementById('kid-class').innerText = `(${activeKid.className})`;
+      document.getElementById('kid-campus').innerText = activeKid.campusName;
+      document.getElementById('kid-group').innerText = activeKid.groupName;
+      document.getElementById('kid-teacher').innerText = activeKid.teacher;
+      document.getElementById('kid-switch-select').value = activeKid.id;
+
+      const msgContainer = document.getElementById('parent-message-container');
+      if (!activeKid.messages || activeKid.messages.length === 0) {
+        msgContainer.innerHTML = `<div class="text-center py-8 text-xs text-slate-400">暂时没有新动态</div>`;
+        return;
+      }
+
+      msgContainer.innerHTML = activeKid.messages.map(msg => `
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 hover:border-indigo-500/30 transition-all shadow-sm">
+          <div class="flex justify-between items-start">
+            <h4 class="text-xs font-bold text-slate-800">${msg.title}</h4>
+            <span class="text-[9px] text-slate-400 whitespace-nowrap ml-2">${msg.time}</span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">${msg.content}</p>
+          <div class="mt-3 pt-2.5 border-t border-slate-200/60 flex justify-between items-center text-[10px] text-slate-400">
+            <span>发布者：${msg.sender}</span>
+            ${msg.confirmed 
+              ? `<span class="text-slate-400 bg-slate-200 px-2 py-0.5 rounded-md font-semibold">已收到确认</span>`
+              : `<span onclick="confirmReceipt('${activeKid.id}', '${msg.id}')" class="text-white bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-all shadow-sm shadow-indigo-600/10">签收通知</span>`
+            }
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function switchKid(kidId) {
+      state.activeKidId = kidId;
+      renderParent();
+    }
+
+    // ==================== 业务表单操作处理器 ====================
+
+    // 控制新增集团弹窗显示
+    function toggleAddGroupModal(show) {
+      const modal = document.getElementById('add-group-modal');
+      if (show) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    // 运营端：新增集团
+    function handleAddGroup(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-group-name').value;
+      const max = document.getElementById('new-group-max').value;
+      if (!name) return;
+
+      const newGroup = {
+        id: `group-${Date.now().toString().slice(-4)}`,
+        name: name,
+        maxCampuses: Number(max),
+        status: '正常',
+        createdAt: new Date().toISOString().split('T')[0]
+      };
+
+      state.groups.push(newGroup);
+      document.getElementById('new-group-name').value = '';
+      toggleAddGroupModal(false);
+      syncDropdowns();
+      renderAll();
+      showToast('创建成功', `集团“${name}”已被成功开通并录入。`);
+    }
+
+    // 园区端：教师/园所发布新消息
+    function handlePublishMessage(e) {
+      e.preventDefault();
+      const targetClass = document.getElementById('msg-target-class').value;
+      const title = document.getElementById('msg-title').value;
+      const content = document.getElementById('msg-content').value;
+
+      if (!title || !content) return;
+
+      // 联动更新符合班级条件的孩子列表
+      state.kids = state.kids.map(kid => {
+        if (kid.className === targetClass || targetClass === '全园') {
+          return {
+            ...kid,
+            messages: [
+              {
+                id: `m-${Date.now()}`,
+                title: title,
+                content: content,
+                sender: '班主任老师',
+                time: '刚刚',
+                confirmed: false
+              },
+              ...kid.messages
+            ]
+          };
+        }
+        return kid;
+      });
+
+      document.getElementById('msg-title').value = '';
+      document.getElementById('msg-content').value = '';
+      
+      renderAll();
+      showToast('推送成功', '通知已即时推送到相关家长的手机APP端！');
+    }
+
+    // 家长端：签收确认通知
+    function confirmReceipt(kidId, msgId) {
+      const kid = state.kids.find(k => k.id === kidId);
+      if (kid) {
+        const msg = kid.messages.find(m => m.id === msgId);
+        if (msg) {
+          msg.confirmed = true;
+          renderParent();
+          showToast('签收成功', `您已完成《${msg.title}》的已读签名确认。`);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
